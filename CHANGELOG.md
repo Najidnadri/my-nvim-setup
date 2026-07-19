@@ -26,3 +26,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   clears.
 - **Custom LuaSnip snippets** loaded from `~/.config/nvim/snippets`, including
   `prettify` and `prettifydeep` for inspecting flattened TypeScript types.
+- **`install.sh`** to install (symlink into `~/.config/nvim`) and uninstall the
+  config. Existing configs and generated data are moved to timestamped backups
+  rather than deleted; re-running install is idempotent.
