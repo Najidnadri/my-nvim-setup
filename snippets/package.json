@@ -1,0 +1,13 @@
+{
+  "name": "najid-custom-snippets",
+  "version": "1.0.0",
+  "engines": { "vscode": "^1.11.0" },
+  "contributes": {
+    "snippets": [
+      {
+        "language": ["typescript", "typescriptreact", "javascript", "javascriptreact"],
+        "path": "./typescript.json"
+      }
+    ]
+  }
+}

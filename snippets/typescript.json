@@ -1,0 +1,22 @@
+{
+  "Prettify — inspect a type's flattened shape": {
+    "prefix": "prettify",
+    "body": [
+      "type Prettify<T> = { [K in keyof T]: T[K] } & {};",
+      "type _Pretty = Prettify<${1:TypeName}>;",
+      "//           ^?"
+    ],
+    "description": "Self-contained: declares Prettify inline, then a scratch line to hover (K) or read via twoslash ^?. Works in any project — delete all three lines when done."
+  },
+  "PrettifyDeep — recursively expand a nested type": {
+    "prefix": "prettifydeep",
+    "body": [
+      "type PrettifyDeep<T> = T extends object",
+      "  ? T extends infer O ? { [K in keyof O]: PrettifyDeep<O[K]> } : never",
+      "  : T;",
+      "type _Pretty = PrettifyDeep<${1:TypeName}>;",
+      "//           ^?"
+    ],
+    "description": "Self-contained deep expansion for nested object types. Hover _Pretty (K) or read the twoslash ^?. Delete when done."
+  }
+}
