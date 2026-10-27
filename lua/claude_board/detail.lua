@@ -363,6 +363,38 @@ function M.attach(sid)
   vim.cmd("startinsert")
 end
 
+-- Header bar listing every tab; session tabs carry their status icon. Click or gt/gT to switch.
+function M.winbar()
+  local parts, cur = {}, vim.api.nvim_get_current_tabpage()
+  for i, tab in ipairs(vim.api.nvim_list_tabpages()) do
+    local ok, sid = pcall(vim.api.nvim_tabpage_get_var, tab, "claude_board_sid")
+    local label
+    if ok then
+      local s = board().find(sid)
+      label = (s and (board().icons[s.status] or "·") or "×") .. " " .. (s and s.name or "ended")
+    else
+      local name = ""
+      for _, win in ipairs({ vim.api.nvim_tabpage_get_win(tab), unpack(vim.api.nvim_tabpage_list_wins(tab)) }) do
+        name = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(win))
+        if not name:find("^claude://") then
+          break
+        end
+      end
+      label = (name ~= "" and not name:find("^claude://")) and vim.fn.fnamemodify(name, ":t") or "[No Name]"
+    end
+    label = vim.fn.strcharpart(label, 0, 22)
+    local group = tab == cur and "%#TabLineSel#" or "%#TabLine#"
+    table.insert(parts, string.format("%s%%%d@v:lua.ClaudeBoardTab@ %d %s %%X", group, tab, i, (label:gsub("%%", "%%%%"))))
+  end
+  return table.concat(parts, "%#TabLineFill# ") .. "%#TabLineFill#"
+end
+
+_G.ClaudeBoardTab = function(tab)
+  if vim.api.nvim_tabpage_is_valid(tab) then
+    vim.api.nvim_set_current_tabpage(tab)
+  end
+end
+
 local function find_tab(sid)
   for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
     local ok, val = pcall(vim.api.nvim_tabpage_get_var, tab, "claude_board_sid")
@@ -437,6 +469,8 @@ function M.open(sid)
   end
   vim.api.nvim_win_set_buf(0, v.buf)
   vim.wo.number, vim.wo.relativenumber, vim.wo.signcolumn, vim.wo.wrap = false, false, "no", true
+  vim.wo.winbar = "%!v:lua.require'claude_board.detail'.winbar()"
+  board().ensure_sidebar(false)
   render(sid)
   board().start()
 end

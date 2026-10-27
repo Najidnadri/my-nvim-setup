@@ -10,7 +10,8 @@ M.width = 42
 M.interval = 2000
 M.data = { sessions = {} }
 
-local state = { buf = nil, timer = nil, busy = false, line_to_sid = {} }
+-- on: the sidebar is wanted in every tab until toggled off.
+local state = { buf = nil, timer = nil, busy = false, line_to_sid = {}, on = false }
 
 local icons = { pending = "?", running = "●", background = "◐", idle = "○", unknown = "·" }
 local hl = {
@@ -20,6 +21,8 @@ local hl = {
   idle = "Comment",
   unknown = "Comment",
 }
+
+M.icons, M.hl = icons, hl
 
 function M.find(sid)
   for _, s in ipairs(M.data.sessions or {}) do
@@ -133,7 +136,7 @@ local function touch_heartbeat()
 end
 
 local function board_visible()
-  return sidebar_win() ~= nil or require("claude_board.detail").any_open()
+  return state.on or require("claude_board.detail").any_open()
 end
 
 function M.refresh()
@@ -215,13 +218,15 @@ local function create_buf()
   return buf
 end
 
-function M.open()
-  if sidebar_win() then
+-- Adds the sidebar to the current tab if it is missing; focus says whether the cursor moves into it.
+function M.ensure_sidebar(focus)
+  if not state.on or sidebar_win() then
     return
   end
   if not (state.buf and vim.api.nvim_buf_is_valid(state.buf)) then
     state.buf = create_buf()
   end
+  local prev = vim.api.nvim_get_current_win()
   vim.cmd("topleft vsplit")
   local win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(win, state.buf)
@@ -229,14 +234,27 @@ function M.open()
   local wo = vim.wo[win]
   wo.winfixwidth, wo.number, wo.relativenumber = true, false, false
   wo.signcolumn, wo.wrap, wo.cursorline, wo.foldcolumn = "no", false, true, "0"
+  if not focus and vim.api.nvim_win_is_valid(prev) then
+    vim.api.nvim_set_current_win(prev)
+  end
+end
+
+function M.open()
+  state.on = true
+  M.ensure_sidebar(true)
   render_sidebar()
   M.start()
 end
 
 function M.close()
-  local win = sidebar_win()
-  if win and #vim.api.nvim_tabpage_list_wins(0) > 1 then
-    vim.api.nvim_win_close(win, true)
+  state.on = false
+  for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
+    local wins = vim.api.nvim_tabpage_list_wins(tab)
+    for _, win in ipairs(wins) do
+      if vim.api.nvim_win_get_buf(win) == state.buf and #wins > 1 then
+        vim.api.nvim_win_close(win, true)
+      end
+    end
   end
   if not board_visible() then
     M.stop()
@@ -244,12 +262,21 @@ function M.close()
 end
 
 function M.toggle()
-  if sidebar_win() then
+  if state.on then
     M.close()
   else
     M.open()
   end
 end
+
+vim.api.nvim_create_autocmd("TabEnter", {
+  group = vim.api.nvim_create_augroup("claude_board", { clear = true }),
+  callback = function()
+    vim.schedule(function()
+      M.ensure_sidebar(false)
+    end)
+  end,
+})
 
 -- Headless check: print the parsed board.
 function M.dump()
